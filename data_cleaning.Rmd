@@ -36,12 +36,10 @@ clean_overall_table <- function(x) {
 }
 ```
 
-## Existing Data
+## Existing Data (this pulled data from 2020-08-18 to 2020-09-02)
 
 ### Pull all tables
 ```{r echo=FALSE}
-pdf_09_04 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/2d402f08-522f-4cc9-83f2-535726422841/9.4.2020-Local-School-COVID-19-Reporting-Daily-Report.pdf?MOD=AJPERES")
-pdf_09_03 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/d9d665d9-18b2-46fd-80bd-3bc7df7d6f58/9.3.2020-Local-School-COVID-19-Reporting-Daily-Report.pdf?MOD=AJPERES")
 pdf_09_02 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/09a1e3b6-46ed-48f9-bc4a-061e54c50471/9.2.2020-Local-School-COVID-19-Reporting-Daily-Report.v2.pdf?MOD=AJPERES")
 pdf_09_01 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/1f516db8-e7ef-4919-8c96-65447d83171c/9.1.2020-Local-School-COVID-19-Reporting-Daily-Report-v2.pdf?MOD=AJPERES")
 pdf_08_31 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/069e1e6e-0642-4607-913f-ed1d94e0d1bc/8.31.2020-Local-School-COVID-19-Reporting-Daily-Report.eq.pdf?MOD=AJPERES")
@@ -58,20 +56,19 @@ pdf_08_18 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/
 
 ### Run cleaning function on all tables 
 ```{r}
-pdf_table_names <- list(pdf_08_18, pdf_08_19, pdf_08_20, pdf_08_21, pdf_08_24, pdf_08_25, pdf_08_26, pdf_08_28, pdf_09_01, pdf_09_02, pdf_09_04)
+pdf_table_names <- list(pdf_08_18, pdf_08_19, pdf_08_20, pdf_08_21, pdf_08_24, pdf_08_25, pdf_08_26, pdf_08_28, pdf_09_01, pdf_09_02)
 
 all_days <- map_dfr(pdf_table_names, clean_overall_table) 
 ```
 
 ### Make dates table to bind 
 ```{r}
-dates <- rep(seq(as.Date("2020-08-18"), Sys.Date(), by = "day"), each = 4)
+dates <- rep(seq(as.Date("2020-08-18"), as.Date("2020-09-02"), by = "day"), each = 4)
 dates <- data.frame(dates[!weekdays(dates) %in% c('Saturday','Sunday')]) 
 colnames(dates) <- c("date")
 dates <- filter(dates, 
                 date != as.Date("2020-08-27"), 
-                date != as.Date("2020-08-31"), 
-                date != as.Date("2020-09-03"))
+                date != as.Date("2020-08-31"))
 ```
 
 
@@ -143,12 +140,20 @@ write_csv(all_days_clean, here::here("data/clean/all_days_clean_overall.csv"))
 
 ## Pull and add a new day 
 ```{r}
-latest_day <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/2d402f08-522f-4cc9-83f2-535726422841/9.4.2020-Local-School-COVID-19-Reporting-Daily-Report.pdf?MOD=AJPERES")
-clean_overall_table(latest_day)
+latest_day_all <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/2d402f08-522f-4cc9-83f2-535726422841/9.4.2020-Local-School-COVID-19-Reporting-Daily-Report.pdf?MOD=AJPERES")
+latest_day_messy <- clean_overall_table(latest_day_all)
+
+date <- data.frame(date = rep(Sys.Date(), 4))
+# date <- data.frame(date = c(as.Date("2020-09-04"), as.Date("2020-09-04"),
+#                             as.Date("2020-09-04"), as.Date("2020-09-04")))
+latest_day <- cbind(date, latest_day_messy) %>% 
+  rename(reasons = Reason)
+
+write_csv(latest_day, here::here(paste0("data/clean/", Sys.Date(), "-pull.csv")))
 
 missing_latest_day <- read_csv(here::here("data/clean/all_days_clean_overall.csv"))
 
-rbind(missing_latest_day, latest_day)
+all_days_clean <- rbind(missing_latest_day, latest_day)
 write_csv(all_days_clean, here::here("data/clean/all_days_clean_overall.csv"))
 ```
 
