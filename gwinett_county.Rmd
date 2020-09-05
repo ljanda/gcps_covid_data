@@ -1,0 +1,189 @@
+---
+title: "Gwinnett County Covid Data Cleaning"
+date: "9/1/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r include=FALSE}
+library(janitor)
+library(tabulizer)
+library(dplyr)
+library(knitr)
+library(magrittr)
+library(purrr)
+library(readr)
+library(here)
+```
+
+# Overall table
+
+## Function: overall table cleaning function 
+```{r echo=FALSE}
+clean_overall_table <- function(x) {
+  x <-
+  data.frame(x[[1]]) %>% 
+  row_to_names(row_number = 1)
+  if(ncol(x) == 4) {
+    colnames(x) <- c("Reason", "Staff", "Student", "Total")
+  } else {
+    colnames(x) <- c("Reason", "Total")
+  }
+  x
+}
+```
+
+## Existing Data
+
+### Pull all tables
+```{r echo=FALSE}
+pdf_09_04 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/2d402f08-522f-4cc9-83f2-535726422841/9.4.2020-Local-School-COVID-19-Reporting-Daily-Report.pdf?MOD=AJPERES")
+pdf_09_03 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/d9d665d9-18b2-46fd-80bd-3bc7df7d6f58/9.3.2020-Local-School-COVID-19-Reporting-Daily-Report.pdf?MOD=AJPERES")
+pdf_09_02 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/09a1e3b6-46ed-48f9-bc4a-061e54c50471/9.2.2020-Local-School-COVID-19-Reporting-Daily-Report.v2.pdf?MOD=AJPERES")
+pdf_09_01 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/1f516db8-e7ef-4919-8c96-65447d83171c/9.1.2020-Local-School-COVID-19-Reporting-Daily-Report-v2.pdf?MOD=AJPERES")
+pdf_08_31 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/069e1e6e-0642-4607-913f-ed1d94e0d1bc/8.31.2020-Local-School-COVID-19-Reporting-Daily-Report.eq.pdf?MOD=AJPERES")
+pdf_08_28 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/10e3c4a0-157b-4f3a-94c3-2f1a09a8d0e1/8.28.2020-Local-School-COVID-19-Reporting-Daily-Report.eq.pdf?MOD=AJPERES")
+pdf_08_26 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/c32f8f78-8d6a-495e-975e-e75d5f7327a6/8.26.2020-Local-School-COVID19-Reporting-Daily-Report.eq.pdf?MOD=AJPERES")
+pdf_08_25 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/52071556-0d5a-4118-b073-6acd0a5e62f0/8.25.2020-Local-School-COVID-19-Reporting-Daily-Report.eq.pdf?MOD=AJPERES")
+pdf_08_24 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/50e67bcc-6e9a-4677-b83f-f8ffcc77b611/8.24.2020-Local-School-COVID-19-Reporting-Daily-Report.pdf?MOD=AJPERES")
+pdf_08_21 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/e271ac1d-1f66-4f73-9429-54106cf65de0/8.21.2020-Local-School-COVID-19-Reporting-Daily-Report.pdf?MOD=AJPERES")
+pdf_08_20 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/fc8ccad8-d591-4230-84c8-44be4dc89a10/8.20.2020-Local-School-COVID-19-Reporting-Daily-Report.eq.pdf?MOD=AJPERES")
+pdf_08_19 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/4c44b0d3-866b-4112-abd4-e3b0d54442ed/8.19.2020-Local-School-COVID-19-Reporting-Daily-Report.eq.pdf?MOD=AJPERES")
+pdf_08_18 <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/e1e3ea68-4240-4b38-a0d4-9fd685971820/8.18.2020-Local-School-COVID-19-Reporting-Daily-Report.eq.pdf?MOD=AJPERES")
+
+```
+
+### Run cleaning function on all tables 
+```{r}
+pdf_table_names <- list(pdf_08_18, pdf_08_19, pdf_08_20, pdf_08_21, pdf_08_24, pdf_08_25, pdf_08_26, pdf_08_28, pdf_09_01, pdf_09_02, pdf_09_04)
+
+all_days <- map_dfr(pdf_table_names, clean_overall_table) 
+```
+
+### Make dates table to bind 
+```{r}
+dates <- rep(seq(as.Date("2020-08-18"), Sys.Date(), by = "day"), each = 4)
+dates <- data.frame(dates[!weekdays(dates) %in% c('Saturday','Sunday')]) 
+colnames(dates) <- c("date")
+dates <- filter(dates, 
+                date != as.Date("2020-08-27"), 
+                date != as.Date("2020-08-31"), 
+                date != as.Date("2020-09-03"))
+```
+
+
+### Make reasons table to bind (since this is not clean for several of the days)
+```{r}
+rep_times <- (nrow(all_days)/4)
+reasons <- rep(c("Close Contact", "Positive Case", "Suspected Case", "Total"), rep_times)
+reasons <- data.frame(reasons)
+```
+
+
+### bind table with dates and reasons 
+```{r}
+all_days <- cbind(all_days, dates, reasons)
+```
+
+
+### manually clean the days where tabulizer crapped out
+```{r}
+nearly_all_days_clean <- 
+  all_days %>% 
+  mutate(Total = gsub(" ", "", Total), 
+         date = as.character(date), 
+         Total = 
+           case_when(date == "2020-08-18" & reasons == "Close Contact" ~ 17, 
+                     date == "2020-08-18" & reasons == "Suspected Case" ~ 21, 
+                     date == "2020-08-18" & reasons == "Total" ~ 41,
+                     date == "2020-08-25" & reasons == "Close Contact" ~ 19, 
+                     date == "2020-08-25" & reasons == "Suspected Case" ~ 18, 
+                     date == "2020-08-25" & reasons == "Total" ~ 42,
+                     date == "2020-08-26" & reasons == "Close Contact" ~ 20, 
+                     date == "2020-08-26" & reasons == "Suspected Case" ~ 18, 
+                     date == "2020-08-26" & reasons == "Total" ~ 38,
+                     date == "2020-09-02" & reasons == "Close Contact" ~ 103, 
+                     date == "2020-09-02" & reasons == "Positive Case" ~ 2, 
+                     date == "2020-09-02" & reasons == "Suspected Case" ~ 33, 
+                     date == "2020-09-02" & reasons == "Total" ~ 138,
+                     TRUE ~ as.numeric(Total))) %>% 
+  select(date, reasons, Staff, Student, Total)
+```
+
+
+### manually make the two days where tabulizer really totally crapped out
+```{r}
+messy_days <- data.frame(
+date = c("2020-08-27", "2020-08-27", "2020-08-27", "2020-08-27", 
+         "2020-08-31", "2020-08-31", "2020-08-31", "2020-08-31", 
+         "2020-09-03", "2020-09-03", "2020-09-03", "2020-09-03"), 
+reasons = c("Close Contact", "Positive Case", "Suspected Case", "Total", 
+            "Close Contact", "Positive Case", "Suspected Case", "Total", 
+            "Close Contact", "Positive Case", "Suspected Case", "Total"), 
+Staff = c(31, 0, 16, 47, 18, 1, 15, 34, 30, 0, 23, 53), 
+Student = c(54, 2, 16, 72, 64, 0, 16, 80, 60, 0, 39, 99), 
+Total = c(85, 2, 32, 119, 82, 1, 31, 114, 90, 0, 62, 152)
+)
+
+```
+
+### bind messy days with all others
+```{r}
+all_days_clean <- rbind(nearly_all_days_clean, messy_days)
+```
+
+
+```{r}
+write_csv(all_days_clean, here::here("data/clean/all_days_clean_overall.csv"))
+```
+
+
+## Pull and add a new day 
+```{r}
+latest_day <- extract_tables("http://publish.gwinnett.k12.ga.us/gcps/wcm/connect/2d402f08-522f-4cc9-83f2-535726422841/9.4.2020-Local-School-COVID-19-Reporting-Daily-Report.pdf?MOD=AJPERES")
+clean_overall_table(latest_day)
+
+missing_latest_day <- read_csv(here::here("data/clean/all_days_clean_overall.csv"))
+
+rbind(missing_latest_day, latest_day)
+write_csv(all_days_clean, here::here("data/clean/all_days_clean_overall.csv"))
+```
+
+# Clean latest day detailed report
+```{r}
+new_cases_by_school_p1 <- data.frame(latest_day[[2]]) %>% 
+  # select(-X3, -X5, -X7) %>% 
+  # rename(X3 = X4, X4 = X6, X5 = X8) %>% 
+  mutate(X1 = as.character(X1),
+         X2 = as.character(X2),
+         X3 = as.character(X3),
+         X4 = as.character(X4),
+         X5 = as.character(X5))
+  #        X3 = ifelse(X1 == "School", "Positive Case", X3), 
+  #        X4 = ifelse(X1 == "School", "Suspected Case", X4), 
+  #        X5 = ifelse(X1 == "School", "Total", X5), 
+  #        X1 = ifelse(X1 == "School", "School", X1), 
+  #        X2 = ifelse(X2 == "School", "Close Contact", X2))
+  
+new_cases_by_school_p2 <- data.frame(latest_day[[3]]) %>% 
+    mutate(X1 = as.character(X1),
+         X2 = as.character(X2),
+         X3 = as.character(X3),
+         X4 = as.character(X4),
+         X5 = as.character(X5))
+
+new_cases_by_school <- rbind(new_cases_by_school_p1, new_cases_by_school_p2) %>% 
+  row_to_names(row_number = 1) %>% 
+  clean_names() %>% 
+  filter(school != "Science and Technology", 
+         school != "School") %>% 
+  mutate(school = as.character(school), 
+         school = ifelse(school == "Gwinnett School of Mathematics,", "Gwinnett School of Mathematics, Science and Technology", school), 
+         positive_case = as.numeric(positive_case), 
+         suspected_case = as.numeric(suspected_case),
+         close_contact = as.numeric(close_contact))
+```
+

@@ -1,0 +1,103 @@
+---
+title: "Gwinnett County Covid Data Report"
+date: "9/1/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r include=FALSE}
+library(readr)
+library(here)
+library(dplyr)
+library(knitr)
+library(magrittr)
+library(purrr)
+library(ggplot2)
+library(kableExtra)
+library(stringr)
+```
+
+
+```{r read_data}
+all_days_clean <- read_csv(here::here("data/clean/all_days_overall.csv"))
+new_cases_by_school <- read_csv(here::here("data/clean/new_cases_by_school.csv"))
+```
+
+
+```{r}
+all_days_clean %>% 
+  filter(reasons == "Positive Case") %>% 
+  mutate(date = gsub("2020-", "", date)) %>% 
+  ggplot(aes(Total, date)) + 
+  geom_col() + 
+  coord_flip() + 
+  theme_minimal() + 
+  labs(y = NULL, title = "Total positive cases")
+```
+
+<br>
+
+```{r}
+all_days_clean %>% 
+  filter(reasons == "Suspected Case") %>% 
+  mutate(date = gsub("2020-", "", date)) %>% 
+  ggplot(aes(Total, date)) + 
+  geom_col() + 
+  coord_flip() + 
+  theme_minimal() + 
+  labs(y = NULL, title = "Total suspected cases")
+  
+```
+
+<br>
+
+```{r}
+all_days_clean %>% 
+  filter(reasons == "Close Contact") %>% 
+  mutate(date = gsub("2020-", "", date)) %>% 
+  ggplot(aes(Total, date)) + 
+  geom_col() + 
+  coord_flip() + 
+  theme_minimal() + 
+  labs(y = NULL, title = "Total close contact")
+```  
+
+<br>
+
+```{r}
+all_days_clean %>% 
+  filter(reasons == "Total") %>% 
+  mutate(date = gsub("2020-", "", date)) %>% 
+  ggplot(aes(Total, date)) + 
+  geom_col() + 
+  coord_flip() + 
+  theme_minimal() + 
+  labs(y = NULL, title = "Total close contact, positive cases, and suspected cases")
+  
+```
+
+<br>
+
+Today, the following schools have *positive* cases
+```{r echo=FALSE}
+new_cases_by_school %>% 
+  filter(positive_case >= 1) %>% 
+  select(school, positive_case, close_contact) %>% 
+  kable(col.names = c("School", "Positive Cases", "Close Contacts")) %>% 
+  kableExtra::kable_styling(position = "left")
+```
+
+
+<br>
+
+Today, the following schools have *suspected* cases
+```{r echo=FALSE}
+new_cases_by_school %>% 
+  filter(suspected_case >= 1) %>% 
+  select(school, suspected_case, close_contact) %>% 
+  kable(col.names = c("School", "Suspected Cases", "Close Contacts")) %>% 
+  kableExtra::kable_styling(position = "left")
+```
