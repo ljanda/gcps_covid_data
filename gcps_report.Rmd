@@ -22,7 +22,7 @@ library(stringr)
 
 
 ```{r read_data}
-all_days_clean <- read_csv(here::here("data/clean/all_days_overall.csv"))
+all_days_clean <- read_csv(here::here("data/clean/all_days_clean_overall.csv"))
 new_cases_by_school <- read_csv(here::here("data/clean/new_cases_by_school.csv"))
 ```
 

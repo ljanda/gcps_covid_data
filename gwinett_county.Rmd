@@ -185,5 +185,7 @@ new_cases_by_school <- rbind(new_cases_by_school_p1, new_cases_by_school_p2) %>%
          positive_case = as.numeric(positive_case), 
          suspected_case = as.numeric(suspected_case),
          close_contact = as.numeric(close_contact))
+
+write_csv(new_cases_by_school, here::here("data/clean/new_cases_by_school.csv"))
 ```
 
